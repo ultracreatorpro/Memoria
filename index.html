@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory</title>
+    <style>
+        body {
+            background-color: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+        }
+
+        .header {
+            width: 100%;
+            background-color: #007BFF;
+            color: white;
+            text-align: center;
+            padding: 20px 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-gap: 10px;
+            width: 90%;
+            max-width: 400px;
+            margin-top: 20px;
+        }
+
+        .card {
+            width: 100%;
+            height: 100px;
+            background-color: #007BFF;
+            color: white;
+            font-size: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .card.flipped {
+            background-color: white;
+            color: black;
+        }
+
+        .hidden {
+            visibility: hidden;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .timer {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .restart-btn {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            border-radius: 5px;
+        }
+
+        .restart-btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        Prueba tu Memoria
+    </div>
+
+    <div class="game-board" id="gameBoard">
+        <!-- Las cartas se generarán dinámicamente -->
+    </div>
+
+    <div class="controls">
+        <div class="timer" id="timer">Tiempo: 01:00</div>
+        <button class="restart-btn" id="restartBtn">Reiniciar</button>
+    </div>
+
+    <script>
+        const cardsArray = [
+            { name: 'A', img: '🦄' },
+            { name: 'B', img: '🐉' },
+            { name: 'C', img: '🐬' },
+            { name: 'D', img: '🦋' },
+            { name: 'E', img: '🌸' },
+            { name: 'F', img: '🌞' },
+            { name: 'G', img: '🍀' },
+            { name: 'H', img: '🔥' },
+        ];
+
+        let gameBoard = document.getElementById('gameBoard');
+        let timerElement = document.getElementById('timer');
+        let restartBtn = document.getElementById('restartBtn');
+
+        let hasFlippedCard = false;
+        let lockBoard = false;
+        let firstCard, secondCard;
+        let timeLeft = 60; // Tiempo inicial (60 segundos)
+        let timerInterval;
+
+        function startGame() {
+            resetBoard();
+            generateCards();
+            startTimer();
+        }
+
+        // Generar y mezclar las cartas
+        function generateCards() {
+            gameBoard.innerHTML = ''; // Limpiar el tablero
+
+            // Duplicamos las cartas para hacer las parejas
+            let cards = [...cardsArray, ...cardsArray];
+
+            // Mezclamos las cartas
+            cards.sort(() => 0.5 - Math.random());
+
+            // Creamos las cartas en el tablero
+            cards.forEach((card) => {
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('card');
+                cardElement.dataset.name = card.name;
+                cardElement.innerHTML = "?"; // Se muestra el dorso al principio
+                cardElement.addEventListener('click', flipCard);
+                gameBoard.appendChild(cardElement);
+            });
+        }
+
+        // Función para girar una carta
+        function flipCard() {
+            if (lockBoard || this.classList.contains('flipped')) return;
+
+            this.classList.add('flipped');
+            this.innerHTML = cardsArray.find(card => card.name === this.dataset.name).img;
+
+            if (!hasFlippedCard) {
+                hasFlippedCard = true;
+                firstCard = this;
+                return;
+            }
+
+            secondCard = this;
+            lockBoard = true;
+
+            checkForMatch();
+        }
+
+        // Verificar si las cartas coinciden
+        function checkForMatch() {
+            if (firstCard.dataset.name === secondCard.dataset.name) {
+                disableCards();
+            } else {
+                unflipCards();
+            }
+        }
+
+        // Deshabilitar las cartas si coinciden
+        function disableCards() {
+            setTimeout(() => {
+                firstCard.classList.add('hidden');
+                secondCard.classList.add('hidden');
+                resetBoard();
+            }, 1000);
+        }
+
+        // Voltear las cartas si no coinciden
+        function unflipCards() {
+            setTimeout(() => {
+                firstCard.classList.remove('flipped');
+                secondCard.classList.remove('flipped');
+                firstCard.innerHTML = "?";
+                secondCard.innerHTML = "?";
+                resetBoard();
+            }, 1000);
+        }
+
+        // Reiniciar el estado del tablero
+        function resetBoard() {
+            [hasFlippedCard, lockBoard] = [false, false];
+            [firstCard, secondCard] = [null, null];
+        }
+
+        // Iniciar el temporizador
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 60;
+            updateTimerDisplay();
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    revealAllCards();
+                }
+            }, 1000);
+        }
+
+        // Actualizar la pantalla del temporizador
+        function updateTimerDisplay() {
+            let minutes = Math.floor(timeLeft / 60);
+            let seconds = timeLeft % 60;
+            timerElement.textContent = `Tiempo: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        }
+
+        // Mostrar todas las cartas cuando se acaba el tiempo
+        function revealAllCards() {
+            document.querySelectorAll('.card').forEach(card => {
+                if (!card.classList.contains('flipped')) {
+                    card.classList.add('flipped');
+                    card.innerHTML = cardsArray.find(c => c.name === card.dataset.name).img;
+                }
+            });
+
+            // Reiniciar el juego después de 2 segundos
+            setTimeout(startGame, 2000);
+        }
+
+        // Reiniciar el juego manualmente al hacer clic en el botón
+        restartBtn.addEventListener('click', startGame);
+
+        // Iniciar el juego al cargar la página
+        startGame();
+    </script>
+
+</body>
+</html>
